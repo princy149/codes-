@@ -1,0 +1,696 @@
+[root@owl a-h]# cd cluster
+
+[root@owl cluster]# ls
+
+ce_all_c1.rda  ceCancerCells_afterClustExp.rda  ceHMYCN2.rda                clusterAll.R          Rplots.pdf          seAll.rda                    seHMYCN.rda
+
+ce_all_c2.rda  ceCancerCells.rda                ceHMYCN3.rda                clusterCancerCells.R  seAll_allgenes.rda  seCancerCells_afterZINB.rda
+
+ce_all_c3.rda  ceHMYCN1.rda                     clusterAll_lessFiltering.R  cluster_hmycn.R       se_all_K50.rda      seCancerCells.rda
+
+[root@owl cluster]# head -2000 cluster_hmycn.R
+
+#!/usr/bin/env Rscript
+
+library(RColorBrewer)
+
+library(BiocParallel)
+
+library(doParallel)
+
+library(Matrix)
+
+library(ggplot2)
+
+library(gplots)
+
+library(matrixStats)
+
+library(zinbwave)
+
+library(data.table)
+
+library(SummarizedExperiment)
+
+library(clusterExperiment)
+
+library(dplyr)
+
+set.seed(20) #set seed, just in case
+
+
+
+NCORES = 7
+
+mysystem = Sys.info()[['sysname']]
+
+if (mysystem == 'Darwin'){
+
+  registerDoParallel(NCORES)
+
+  register(DoparParam())
+
+}else if (mysystem == 'Linux'){
+
+  register(bpstart(MulticoreParam(workers=NCORES)))
+
+}else{
+
+  print('Please change this to allow parallel computing')
+
+  register(SerialParam())
+
+}
+
+
+
+mypalette = colorRampPalette(rev(brewer.pal(11, "RdYlBu")))(51)
+
+samples.names = c("WT", "X", "Y", "A", "B", "C", "D", "E", "F", "G", "H")
+
+pal = brewer.pal(length(samples.names), "Set3")
+
+names(pal) = samples.names
+
+
+
+load('../../../data/rawCounts.rda')
+
+se = se[, colData(se)$hmycn == T]
+
+se = se[, !colData(se)$samples %in% c('WT', 'X', 'Y')]
+
+
+
+################
+
+# Filter cells
+
+################
+
+# Coverage
+
+cell.tots = Matrix::colSums(assay(se))
+
+names(cell.tots) = NULL
+
+par(lty = 0)
+
+barplot(cell.tots, col = pal[colData(se)$samples], las = 2, space = 0,
+
+        main = 'Coverage', xlab = 'Cells', ylab = 'Number of reads per cell')
+
+legend(x = 'bottomright', legend = names(pal), cex = .5, fill = pal, title = 'samples')
+
+par(lty = 1)
+
+
+
+plot(density(Matrix::colSums(assay(se))), main='Distribution of coverage')
+
+
+
+dim(se)
+
+coverage = Matrix::colSums(assay(se))
+
+filt = coverage < 10000
+
+se = se[, filt]
+
+dim(se)
+
+
+
+# Percentage of zeros
+
+par(lty = 0)
+
+zeroprop = Matrix::colMeans(assay(se) == 0)
+
+names(zeroprop) = NULL
+
+barplot(zeroprop, col = pal[colData(se)$samples], las = 2, space=0, main='Percentage of zeros',
+
+        xlab = 'Cells', ylab = 'Percentage of genes with zero counts')
+
+legend(x = 'bottomright', legend = names(pal), cex=.5, fill = pal, title = 'samples')
+
+par(lty = 1)
+
+
+
+plot(density(zeroprop), main='Distribution of percentage of zeros')
+
+abline(v = 0.98)
+
+abline(v = 0.82)
+
+
+
+dim(se)
+
+filt = zeroprop > 0.82 & zeroprop < 0.98 
+
+se = se[, filt]
+
+dim(se)
+
+
+
+################
+
+# Filter genes
+
+################
+
+genecov = Matrix::rowSums(assay(se))
+
+se = se[genecov > 0, ]
+
+dim(se)
+
+
+
+filt = Matrix::rowSums(assay(se) > 1) > 5
+
+se = se[filt, ]
+
+dim(se)
+
+
+
+genecov = Matrix::rowSums(assay(se))
+
+par(mfrow = c(1,2))
+
+plot(density(log10(1+genecov)), main='Distribution of percentage of zeros, log')
+
+abline(v=log10(5000))
+
+plot(density(genecov),main='Distribution of percentage of zeros')
+
+abline(v=5000)
+
+par(mfrow = c(1,1))
+
+
+
+##############
+
+# subset
+
+##############
+
+vars = rowVars(log1p(as.matrix(assay(se))))
+
+names(vars) = rownames(se)
+
+summary(vars)
+
+vars = sort(vars, decreasing = TRUE)
+
+dim(se)
+
+se = se[names(vars)[1:1000], ]
+
+dim(se)
+
+plot(density(vars), 'Density of variance for log(counts+1)')
+
+abline(v =  vars[1000])
+
+vars[1:10]
+
+
+
+assay(se) = as.matrix(assay(se))
+
+###################
+
+# round 1
+
+###################
+
+print(system.time(se <- zinbDimRed(se, K = 50, epsilon = 5000)))
+
+
+
+assays(se)$normalizedValues_hmcyn1 = assays(se)$normalizedValues
+
+W = as.matrix(colData(se)[, grep('^W', colnames(colData(se)), value = T)])
+
+head(W)
+
+fit = cmdscale(dist(W), eig = TRUE, k = 2)
+
+plot(fit$points, col = alpha(pal[colData(se)$samples], .5),
+
+     main = 'MDS of W', pch = 20)
+
+legend(x = 'bottomright', legend = names(pal), cex=.5, fill = pal, title = 'samples')
+
+
+
+for (x in unique(colData(se)$samples)){
+
+  mycol = ifelse(colData(se)$samples == x, pal[x], 'gray')
+
+  ord = order(mycol, decreasing = T)
+
+  plot(fit$points[ord,], col = alpha(mycol[ord], .5), pch = 20)
+
+  legend('bottomright', fill = unique(mycol),
+
+         legend = c('others', x))
+
+}
+
+
+
+# clustering
+
+set.seed(3939)
+
+seW <- SummarizedExperiment(t(W), colData = colData(se))
+
+ce <- clusterSingle(seW, subsample = TRUE,
+
+                    dimReduce = 'none', 
+
+                    clusterFunction = "hierarchical01",
+
+                    subsampleArgs = list(resamp.num=100,
+
+                                         clusterFunction="kmeans",
+
+                                         clusterArgs=list(nstart=10),
+
+                                         k = 2),
+
+                    clusterDArgs = list(minSize = 15, alpha = 0.8))
+
+ce <- makeDendrogram(ce, whichCluster = "primaryCluster", dimReduce = "none")
+
+save(ce, file = 'ceHMYCN1.rda')
+
+
+
+clust = primaryCluster(ce)
+
+table(clust)
+
+table(clust, colData(se)$samples)
+
+
+
+par(mfrow = c(1,2))
+
+plot(fit$points, col = clust + 2, pch = 20)
+
+legend('bottomright', fill = unique(clust+2), legend = unique(clust))
+
+plot(fit$points, col = alpha(pal[colData(se)$samples], .2), pch = 20)
+
+par(mfrow = c(1,1))
+
+
+
+# DE
+
+fq = EDASeq::betweenLaneNormalization(assay(se), which = 'full')
+
+fq = log1p(fq)
+
+bf = getBestFeatures(fq, clust, contrastType = 'Pairs', number = nrow(se))
+
+bf = bf[,c('Feature', 'adj.P.Val')]
+
+bf = bf %>% group_by(Feature) %>% summarise(adj.P.Val = min(adj.P.Val)) %>%
+
+  arrange(adj.P.Val) %>% ungroup() %>% as.data.frame()
+
+de = bf[bf$adj.P.Val < 0.01, ]
+
+dim(de)
+
+plot(log(de$adj.P.Val))
+
+de = de[1:50, ]
+
+
+
+# visualize
+
+normValues = assays(se)$normalizedValues
+
+mat = normValues[de$Feature,]
+
+breaks = setBreaks(mat, breaks = .99, makeSymmetric = T)
+
+heatmap.2(mat, breaks = breaks,
+
+          ColSideColors = as.character(clust+2),
+
+          trace = 'none', labCol = '',cexRow = 0.8,
+
+          col = mypalette, Colv = ce@dendro_samples)
+
+
+
+heatmap.2(mat, breaks = breaks,
+
+          ColSideColors = pal[colData(se)$samples],
+
+          trace = 'none', labCol = '',cexRow = 0.8,
+
+          col = mypalette, Colv = ce@dendro_samples)
+
+
+
+colData(se)$hmycn1 = clust
+
+
+
+###################
+
+# round 2
+
+###################
+
+print(system.time(se <- zinbDimRed(se, K = 50, epsilon = 5000,
+
+                                   X = '~ hmycn1')))
+
+
+
+colnames(colData(se))
+
+assays(se)$normalizedValues_hmcyn2 = assays(se)$normalizedValues
+
+W = as.matrix(colData(se)[, grep('^W', colnames(colData(se)), value = T)])
+
+W = W[, 51:100]
+
+head(W)
+
+fit = cmdscale(dist(W), eig = TRUE, k = 2)
+
+plot(fit$points, col = alpha(pal[colData(se)$samples], .5),
+
+     main = 'MDS of W', pch = 20)
+
+legend(x = 'bottomright', legend = names(pal), cex=.5, fill = pal, title = 'samples')
+
+
+
+for (x in unique(colData(se)$samples)){
+
+  mycol = ifelse(colData(se)$samples == x, pal[x], 'gray')
+
+  ord = order(mycol, decreasing = T)
+
+  plot(fit$points[ord,], col = alpha(mycol[ord], .5), pch = 20)
+
+  legend('bottomright', fill = unique(mycol),
+
+         legend = c('others', x))
+
+}
+
+
+
+# clustering
+
+set.seed(3939)
+
+seW <- SummarizedExperiment(t(W), colData = colData(se))
+
+ce <- clusterSingle(seW, subsample = TRUE,
+
+                    dimReduce = 'none', 
+
+                    clusterFunction = "hierarchical01",
+
+                    subsampleArgs = list(resamp.num=100,
+
+                                         clusterFunction="kmeans",
+
+                                         clusterArgs=list(nstart=10),
+
+                                         k = 2),
+
+                    clusterDArgs = list(minSize = 15, alpha = 0.9))
+
+ce <- makeDendrogram(ce, whichCluster = "primaryCluster", dimReduce = "none")
+
+save(ce, file = 'ceHMYCN2.rda')
+
+
+
+clust = primaryCluster(ce)
+
+table(clust)
+
+table(clust, colData(se)$samples)
+
+
+
+par(mfrow = c(1,2))
+
+plot(fit$points, col = clust + 2, pch = 20)
+
+legend('bottomright', fill = unique(clust+2), legend = unique(clust))
+
+plot(fit$points, col = alpha(pal[colData(se)$samples], .2), pch = 20)
+
+par(mfrow = c(1,1))
+
+
+
+# DE
+
+fq = EDASeq::betweenLaneNormalization(assay(se), which = 'full')
+
+fq = log1p(fq)
+
+bf = getBestFeatures(fq, clust, contrastType = 'Pairs', number = nrow(se))
+
+bf = bf[,c('Feature', 'adj.P.Val')]
+
+bf = bf %>% group_by(Feature) %>% summarise(adj.P.Val = min(adj.P.Val)) %>%
+
+  arrange(adj.P.Val) %>% ungroup() %>% as.data.frame()
+
+de = bf[bf$adj.P.Val < 0.01, ]
+
+dim(de)
+
+plot(log(de$adj.P.Val))
+
+de = de[1:25, ]
+
+
+
+# visualize
+
+normValues = assays(se)$normalizedValues
+
+mat = normValues[de$Feature,]
+
+breaks = setBreaks(mat, breaks = .99, makeSymmetric = T)
+
+heatmap.2(mat, breaks = breaks,
+
+          ColSideColors = as.character(clust+2),
+
+          trace = 'none', labCol = '',cexRow = 0.8,
+
+          col = mypalette, Colv = ce@dendro_samples)
+
+
+
+heatmap.2(mat, breaks = breaks,
+
+          ColSideColors = pal[colData(se)$samples],
+
+          trace = 'none', labCol = '',cexRow = 0.8,
+
+          col = mypalette, Colv = ce@dendro_samples)
+
+
+
+
+
+colData(se)$hmycn2 = clust
+
+
+
+###################
+
+# round 3
+
+###################
+
+print(system.time(se <- zinbDimRed(se, K = 50, epsilon = 5000,
+
+                                   X = '~ hmycn1 + hmycn2')))
+
+
+
+colnames(colData(se))
+
+assays(se)$normalizedValues_hmcyn3 = assays(se)$normalizedValues
+
+W = as.matrix(colData(se)[, grep('^W', colnames(colData(se)), value = T)])
+
+W = W[, 101:150]
+
+head(W,2)
+
+fit = cmdscale(dist(W), eig = TRUE, k = 2)
+
+plot(fit$points, col = alpha(pal[colData(se)$samples], .5),
+
+     main = 'MDS of W', pch = 20)
+
+legend(x = 'bottomright', legend = names(pal), cex=.5, fill = pal, title = 'samples')
+
+
+
+for (x in unique(colData(se)$samples)){
+
+  mycol = ifelse(colData(se)$samples == x, pal[x], 'gray')
+
+  ord = order(mycol, decreasing = T)
+
+  plot(fit$points[ord,], col = alpha(mycol[ord], .5), pch = 20)
+
+  legend('bottomright', fill = unique(mycol),
+
+         legend = c('others', x))
+
+}
+
+
+
+# clustering
+
+set.seed(3939)
+
+seW <- SummarizedExperiment(t(W), colData = colData(se))
+
+ce <- clusterSingle(seW, subsample = TRUE,
+
+                    dimReduce = 'none', 
+
+                    clusterFunction = "hierarchical01",
+
+                    subsampleArgs = list(resamp.num=100,
+
+                                         clusterFunction="kmeans",
+
+                                         clusterArgs=list(nstart=10),
+
+                                         k = 2),
+
+                    clusterDArgs = list(minSize = 15, alpha = 0.9))
+
+ce <- makeDendrogram(ce, whichCluster = "primaryCluster", dimReduce = "none")
+
+save(ce, file = 'ceHMYCN3.rda')
+
+
+
+clust = primaryCluster(ce)
+
+table(clust)
+
+
+
+par(mfrow = c(1,2))
+
+plot(fit$points, col = clust + 2, pch = 20)
+
+legend('bottomright', fill = unique(clust+2), legend = unique(clust))
+
+plot(fit$points, col = alpha(pal[colData(se)$samples], .2), pch = 20)
+
+par(mfrow = c(1,1))
+
+
+
+# DE
+
+fq = EDASeq::betweenLaneNormalization(assay(se), which = 'full')
+
+fq = log1p(fq)
+
+bf = getBestFeatures(fq, clust, contrastType = 'Pairs', number = nrow(se))
+
+bf = bf[,c('Feature', 'adj.P.Val')]
+
+bf = bf %>% group_by(Feature) %>% summarise(adj.P.Val = min(adj.P.Val)) %>%
+
+  arrange(adj.P.Val) %>% ungroup() %>% as.data.frame()
+
+de = bf[bf$adj.P.Val < 0.01, ]
+
+dim(de)
+
+plot(log(de$adj.P.Val))
+
+de = de[1:50, ]
+
+
+
+# visualize
+
+normValues = assays(se)$normalizedValues
+
+mat = normValues[de$Feature,]
+
+breaks = setBreaks(mat, breaks = .99, makeSymmetric = T)
+
+heatmap.2(mat, breaks = breaks,
+
+          ColSideColors = as.character(clust+2),
+
+          trace = 'none', labCol = '',cexRow = 0.8,
+
+          col = mypalette, Colv = ce@dendro_samples)
+
+
+
+heatmap.2(mat, breaks = breaks,
+
+          ColSideColors = pal[colData(se)$samples],
+
+          trace = 'none', labCol = '',cexRow = 0.8,
+
+          col = mypalette, Colv = ce@dendro_samples)
+
+
+
+
+
+colData(se)$hmycn3 = clust
+
+
+
+
+
+##############
+
+# save
+
+##############
+
+save(se, file = 'seHMYCN.rda')
+
+
+
+[root@owl cluster]# 
+
+
+
