@@ -1,0 +1,153 @@
+peaks <- dir("/Users/srivastava/Desktop/Peaks/",pattern="*.narrowPeak",full.names=TRUE)
+peaks <- dir("/Users/srivastava/Desktop/Peaks",pattern="*.narrowPeak",full.names=TRUE)
+peaks
+peaks_bed <- dir("/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/ATAC_Peaks/ATACall5rep11oct_union_peaks.bed",full.names=TRUE)
+peaks_bed
+peaks_bed <- read.table("/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/ATAC_Peaks/ATACall5rep11oct_union_peaks.bed",full.names=TRUE)
+peaks_bed <- read.table("/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/ATAC_Peaks/ATACall5rep11oct_union_peaks.bed")
+peaks_bed <- ("/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/ATAC_Peaks/ATACall5rep11oct_union_peaks.bed",full.names=TRUE)
+peak_files
+peaks_bed <- "/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/ATAC_Peaks/ATACall5rep11oct_union_peaks.bed"
+peaks_bed
+library(chromVAR)
+library(motifmatchr)
+library(BSgenome.Hsapiens.UCSC.hg19)
+peaks <- getPeaks(peaks_bed)
+peaks_bed <- "/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/ATAC_Peaks/10LMRR_combined.bed"
+peaks <- getPeaks(peaks_bed)
+library(chromVAR)
+library(motifmatchr)
+library(Matrix)
+library(SummarizedExperiment)
+library(BiocParallel)
+set.seed(2017)
+register(MulticoreParam(8))
+peakfile <- system.file( "/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/ATAC_Peaks/10LMRR_combined.bed", package = "chromVAR")
+peakfile
+peakfile <- system.file( '/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/ATAC_Peaks/10LMRR_combined.bed', package = "chromVAR")
+peakfile
+peaks <- getPeaks(peaks_bed, sort_peaks = TRUE)
+sorted_bed <- sortSeqlevels(peaks)
+sorted_bed
+sorted_bed <- sort(sorted_bed, ignore.strand = TRUE)
+sorted_bed
+peakfile2 <- system.file( '/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/ATAC_Peaks/ATACall5rep11oct_union_peaks.bed', package = "chromVAR")
+peakfile2
+peakfile2 <- '/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/ATAC_Peaks/ATACall5rep11oct_union_peaks.bed'
+peakfile2
+sorted_bed <- sortSeqlevels(peakfile2)
+sorted_bed
+peaks <- getPeaks(peakfile2)
+peaks <- getPeaks(peakfile2, sort_peaks = TRUE)
+library(chromVAR)
+library(motifmatchr)
+library(BSgenome.Hsapiens.UCSC.hg19)
+library(BiocParallel)
+library(DESeq2)
+peaks <- '/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/ATAC_Peaks/ATACall5rep11oct_union_peaks.bed'
+peaks
+register(MulticoreParam(8))
+peaks_bam <- dir('/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/NarrowPeak', pattern="*.rmdup.bam",full.names=TRUE)
+peaks_bam
+peaks = getPeaks("peaks", sort_peaks=TRUE)
+# Resize peaks
+peaks = resize(peaks, width=500, fix="center")
+peaks_bed <- '/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/ATAC_Peaks/ATACall5rep11oct_union_peaks.bed'
+peaks = getPeaks("peaks_bed", sort_peaks=TRUE)
+# Resize peaks
+peaks = resize(peaks, width=500, fix="center")
+peaks_bed
+peaks = getPeaks("peaks_bed", sort_peaks=TRUE)
+peaks_bed <- "/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/ATAC_Peaks/ATACall5rep11oct_union_peaks.bed"
+peaks_bed
+peaks = getPeaks("/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/ATAC_Peaks/ATACall5rep11oct_union_peaks.bed", sort_peaks=TRUE)
+peaks <- dir('/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/NarrowPeak', pattern="*.narrowPeak",full.names=TRUE)
+peaks = getPeaks(peaks, sort_peaks=TRUE)
+peaks = resize(peaks, width=500, fix="center")
+peaks = resize(peaks_bed, width=500, fix="center")
+peaks = resize(sorted_bed, width=500, fix="center")
+files <- list.files('/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/ATAC_Peaks')
+files
+peak1T
+peak1T$V1 <- 'chr'
+peak1T
+files
+peak5MT_bed <- '/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/ATAC_Peaks/5MT_combined.bed'
+peak5MT_bed
+peaks <- getPeaks(peak5MT_bed)
+peak5MT_bed_sorted = getPeaks(peak5MT_bed, sort_peaks=TRUE)
+peak5MT_bed_sorted
+# Resize peaks
+peak5MT_bed_sorted_resize_1kb = resize(peak5MT_bed_sorted, width=1000, fix="center")
+peak5MT_bed_sorted_resize_1kb
+colnames(peak5MT)
+peaks_bed
+colname(myCounts)
+colnames(myCounts)
+peak5MT_bed_sorted_resize_1kb
+(5MT_samples <- factor(c(rep("scHCT25-5MT", 38))
+5MT_samples <- factor(c(rep("scHCT25-5MT", 38))
+5MT_samples <- factor(c(rep("scHCT25-5MT", 38)
+5MT_samples <- factor(rep("scHCT25-5MT", 38))
+5MT_samples <- factor("scHCT25-5MT", 38)
+5MT_samples <- factor('scHCT25-5MT', 38)
+5MT_samples <- grep('5MT', coldata)
+bamfiles
+peaks_bam
+colData = DataFrame(sample=c("20190419A-scHCT25-5MT-12_S12", "20190419A-scHCT25-5MT-15_S15",  "20190419A-scHCT25-5MT-17_S17", "20190419A-scHCT25-5MT-22_S22", "20190419A-scHCT25-5MT-23_S23", "20190419A-scHCT25-5MT-25_S25", "20190419A-scHCT25-5MT-26_S26", "20190419A-scHCT25-5MT-28_S28", "20190419A-scHCT25-5MT-29_S29", "20190419A-scHCT25-5MT-2_S2", "20190419A-scHCT25-5MT-30_S30", "20190419A-scHCT25-5MT-33_S33", "20190419A-scHCT25-5MT-34_S34", "20190419A-scHCT25-5MT-35_S35", "20190419A-scHCT25-5MT-36_S36", "20190419A-scHCT25-5MT-3_S3",  "20190419A-scHCT25-5MT-4_S4", "20190419A-scHCT25-5MT-51_S51", "20190419A-scHCT25-5MT-52_S52", "20190419A-scHCT25-5MT-53_S53",  "20190419A-scHCT25-5MT-54_S54", "20190419A-scHCT25-5MT-56_S56", "20190419A-scHCT25-5MT-57_S57", "20190419A-scHCT25-5MT-5_S5", "20190419A-scHCT25-5MT-63_S63", "20190419A-scHCT25-5MT-65_S65", "20190419A-scHCT25-5MT-67_S67", "20190419A-scHCT25-5MT-68_S68", "20190419A-scHCT25-5MT-69_S69", "20190419A-scHCT25-5MT-6_S6", "20190419A-scHCT25-5MT-70_S70", "20190419A-scHCT25-5MT-71_S71", "20190419A-scHCT25-5MT-80_S80", "20190419A-scHCT25-5MT-81_S81", "20190419A-scHCT25-5MT-82_S82", "20190419A-scHCT25-5MT-83_S83", "20190419A-scHCT25-5MT-84_S84", "20190419A-scHCT25-5MT-85_S85")
+)
+colData
+savehistory('making of coldata with sample_name for 5MT.txt')
+5MT_peaks_bam <- dir('/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/NarrowPeak/5MT_BAM', pattern="*.rmdup.bam",full.names=TRUE)
+5MTpeaks_bam <- dir('/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/NarrowPeak/5MT_BAM', pattern="*.rmdup.bam",full.names=TRUE)
+5MTpeaks.bam <- dir('/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/NarrowPeak/5MT_BAM', pattern="*.rmdup.bam",full.names=TRUE)
+5MTpeaksbam <- dir('/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/NarrowPeak/5MT_BAM', pattern="*.rmdup.bam",full.names=TRUE)
+peaksbam_5MT <- dir('/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/NarrowPeak/5MT_BAM', pattern="*.rmdup.bam",full.names=TRUE)
+peaksbam_5MT
+# Fragment counting and peak filtering
+fragment_counts = getCounts(peaksbam_5MT, peak5MT_bed_sorted_resize_1kb, paired=TRUE, by_rg = FALSE, format = "bam", colData = colData)
+savehistory('making of coldata with sample_name for 5MT.txt')
+fragment_counts
+# Fragment counting and peak filtering
+fragment_counts_5MT = getCounts(peaksbam_5MT, peak5MT_bed_sorted_resize_1kb, paired=TRUE, by_rg = FALSE, format = "bam", colData = colData)
+counts_gc = addGCBias(fragment_counts_5MT, genome = BSgenome.Hsapiens.UCSC.hg19)
+peak5MT_bed_sorted_resize_1kb_seqlevel <- sortSeqlevels(peak5MT_bed_sorted_resize_1kb)
+peak5MT_bed_sorted_resize_1kb_seqlevel
+# Fragment counting and peak filtering
+fragment_counts_5MT = getCounts(peaksbam_5MT, peak5MT_bed_sorted_resize_1kb_seqlevel, paired=TRUE, by_rg = FALSE, format = "bam", colData = colData)
+counts_gc = addGCBias(fragment_counts_5MT, genome = BSgenome.Hsapiens.UCSC.hg19)
+example_counts <- addGCBias(fragment_counts_5MT,
+genome = BSgenome.Hsapiens.UCSC.hg19)
+counts_filtered <- filterSamples(fragment_counts_5MT, min_depth = 1500,
+min_in_peaks = 0.15)
+View(markers_cluster1)
+counts_filtered
+counts_filtered_5MT_from_fragmentcounts <- counts_filtered
+counts_filtered_5MT_from_fragmentcounts
+savehistory('making of coldata with sample_name for 5MT.txt')
+counts_filtered_5MT_from_fragmentcounts <- filterPeaks(counts_filtered_5MT_from_fragmentcounts)
+motifs <- getJasparMotifs()
+###################################################
+counts_filtered <- filterPeaks(counts_filtered_5MT_from_fragmentcounts, non_overlapping = TRUE)
+Peaks_bed <- "/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/NarrowPeak/merged.bed"
+Peaks_bed
+peakfile <- system.file("/Users/srivastava/Desktop/21MAY_NEWDATA_NEW_ANALYSIS/NarrowPeak/merged.bed", package = "chromVAR")
+peakfile
+peaks <- getPeaks(Peaks_bed, sort_peaks = TRUE)
+# Resize peaks
+peaks = resize(peaks, width=1000, fix="center")
+peaks
+bamfiles
+peaks_bam
+Sample <- factor(c(rep("scHCT25-5MT", 38), rep("scHCT25-10LMRR", 52), rep("scHCT25-1T", 38),rep("scHCT25-1T-M51", 45), rep("scHCT25_1T-M51-3LM", 49))) ###for ATAC seq data
+#(coldata <- data.frame(row.names=colnames(count), timepoint))
+# Fragment counting and peak filtering
+colData = DataFrame(Sample <- factor(c(rep("scHCT25-5MT", 38), rep("scHCT25-10LMRR", 52), rep("scHCT25-1T", 38),rep("scHCT25-1T-M51", 45), rep("scHCT25_1T-M51-3LM", 49)))
+)
+colData
+# Fragment counting and peak filtering
+colData = DataFrame(Sample <- factor(c(rep("scHCT25-5MT", 38), rep("scHCT25-10LMRR", 52), rep("scHCT25-1T", 38),rep("scHCT25-1T-M51", 45), rep("scHCT25_1T-M51-3LM", 49)))
+)
+# Fragment counting and peak filtering
+fragment_counts = getCounts(peaks_bam, peaks, paired=TRUE, by_rg = FALSE, format = "bam", colData = colData)
+savehistory('making of coldata with sample_name for 5MT.txt')
