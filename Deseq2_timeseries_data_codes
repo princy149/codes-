@@ -1,0 +1,40 @@
+dds <- DESeq(dds)
+resultsNames(dds)
+res <- results(dds)
+res_day3_day0<-results(dds, contrast= c("timepoint", "day3", "day0"))
+ res_day6_day0<-results(dds, contrast= c("timepoint", "day6", "day0"))
+ res_day9_day0<-results(dds, contrast= c("timepoint", "day9", "day0"))
+ #res_day3_day6<-results(dds, contrast= c("timepoint", "day3", "day6"))
+ #res_day9_day6<-results(dds, contrast= c("timepoint", "day9", "day6"))
+ ####################
+ # removing of NA containg lines at padj
+ res_day3_day0_filt <- res_day3_day0[!is.na(res_day3_day0$padj),]
+ res_day6_day0_filt <- res_day6_day0[!is.na(res_day6_day0$padj),]
+ res_day9_day0_filt <- res_day9_day0[!is.na(res_day9_day0$padj),]
+ res_day3_day0_filt[1:5]
+
+# order by adjusted P-value
+res_day3_day0_filt_ordered <- res_day3_day0_filt [order(res_day3_day0_filt$padj),]
+res_day6_day0_filt_ordered <- res_day6_day0_filt [order(res_day6_day0_filt$padj),]
+res_day9_day0_filt_ordered <- res_day9_day0_filt [order(res_day9_day0_filt$padj),]
+
+#heatmap to get top 50 DE Genes
+de.genes_day3_day0 <- rownames(res_day3_day0_filt_ordered) [1:35]
+de.genes_day6_day0 <- rownames(res_day6_day0_filt_ordered) [1:35]
+de.genes_day9_day0 <- rownames(res_day9_day0_filt_ordered) [1:35]
+###
+vsd <- vst(dds)
+norm.data <- assay(vsd)
+colnames(norm.data) <- colData(vsd)$timepoint
+norm.de_day3_day0 <- norm.data[row.names(norm.data) %in% de.genes_day3_day0,]
+norm.de_day6_day0 <- norm.data[row.names(norm.data) %in% de.genes_day6_day0,]
+norm.de_day9_day0 <- norm.data[row.names(norm.data) %in% de.genes_day9_day0,]
+
+vsd.sub_day0_day3 <-vsd[,vsd@colData$timepoint %in% c("day0","day3")]
+vsd.sub_day0_day3
+row.names(vsd.sub_day0_day3)
+vsd.sub_day0_day6 <-vsd[,vsd@colData$timepoint %in% c("day0","day6")]
+vsd.sub_day0_day9 <-vsd[,vsd@colData$timepoint %in% c("day0","day9")]
+vsd.sub_day6_day9 <-vsd[,vsd@colData$timepoint %in% c("day6","day9")]
+vsd.sub_day3_day6 <-vsd[,vsd@colData$timepoint %in% c("day3","day6")]
+####################################################################
