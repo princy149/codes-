@@ -1,0 +1,1042 @@
+raw <- read.table("/Users/srivastava/Desktop/clean_Day0_3_6_9_September_counts.tsv", header=TRUE ,  row.name="Geneid")
+#raw <- read.table("/Users/srivastava/Desktop/no_mito_no_ribo_c1_count.tsv", header=TRUE, row.name="Geneid")
+raw = raw[rowSums(raw) >10,]
+raw <- as.matrix(raw)
+dim(raw)
+(timepoint <- factor(c(rep("day0", 96), rep("day3", 96), rep("day6", 96), rep("day9", 96))))
+
+library(Seurat)
+
+#library(monocle)
+
+library(cellTree)
+
+
+
+pbmc <- CreateSeuratObject(counts = raw)
+
+pbmc <- NormalizeData(object = pbmc)
+
+pbmc <- FindVariableFeatures(object = pbmc)
+
+pbmc <- ScaleData(object = pbmc)
+
+pbmc <- RunPCA(object = pbmc)
+
+pbmc <- FindNeighbors(object = pbmc)
+
+pbmc <- FindClusters( object = pbmc, reduction.type = "pca", resolution = 3, dims.use = 1:20, save.SNN = TRUE )
+
+pbmc <- RunTSNE(object = pbmc, check_duplicates = FALSE)
+
+DimPlot(object = pbmc , reduction = "tsne")
+
+seurat <- RunUMAP(object = pbmc, reduction = "pca", dims = 1:50)
+
+DimPlot(object = seurat, reduction = "umap")
+
+pbmc.markers <- FindAllMarkers(object = seurat, only.pos = TRUE, min.pct = 0.25,thresh.use = 0.25)
+
+pbmc.markers %>% group_by(cluster) %>% top_n(5, avg_logFC)
+
+
+
+
+
+Seurat object to monocle
+
+
+
+
+
+data <- as(as.matrix(pbmc@assays$RNA@data), 'sparseMatrix')
+
+pd <- new('AnnotatedDataFrame', data = pbmc@meta.data)
+
+fData <- data.frame(gene_short_name = row.names(data), row.names = row.names(data))
+
+fd <- new('AnnotatedDataFrame', data = fData)
+
+data
+
+my_cds <- newCellDataSet(data,
+
+phenoData = pd,
+
+featureData = fd,
+
+lowerDetectionLimit = 0.5,
+
+expressionFamily = negbinomial.size())
+
+my_cds
+
+my_cds$Size_Factor
+
+slotNames(my_cds)
+
+my_cds <- estimateSizeFactors(my_cds)
+
+my_cds <- estimateDispersions(my_cds)
+
+my_cds
+
+my_cds <- detectGenes(my_cds, min_expr = 0.1)
+
+head(fData(my_cds))
+
+summary(fData(my_cds)$num_cells_expressed)
+
+head(pData(my_cds))
+
+# standardise to Z-distribution
+
+x <- pData(my_cds)$num_genes_expressed
+
+x_1 <- (x - mean(x)) / sd(x)
+
+summary(x_1)
+
+library(ggplot2)
+
+# I like the default theme of cowplot
+
+library(cowplot)
+
+df <- data.frame(x = x_1)
+
+ggplot(df, aes(x)) +
+
+geom_histogram(bins = 50) +
+
+geom_vline(xintercept = c(-2, 2), linetype = "dotted", color = 'red')
+
+dev.off()
+
+pData(my_cds)$UMI <- Matrix::colSums(exprs(my_cds))
+
+head(pData(my_cds))
+
+ggplot(pData(my_cds), aes(num_genes_expressed, UMI)) + geom_point()
+
+dev.off()
+
+disp_table <- dispersionTable(my_cds)
+
+head(disp_table)
+
+table(disp_table$mean_expression>=0.1)
+
+unsup_clustering_genes <- subset(disp_table, mean_expression >= 0.1)
+
+my_cds <- setOrderingFilter(my_cds, unsup_clustering_genes$gene_id)
+
+plot_ordering_genes(my_cds)
+
+plot_pc_variance_explained(my_cds, return_all = FALSE)
+
+dev.off()
+
+
+
+
+
+
+
+my_cds <- reduceDimension(my_cds, max_components = 2, num_dim = 5,
+
+reduction_method = 'tSNE', verbose = TRUE)
+
+my_cds <- reduceDimension(my_cds, max_components = 2, num_dim = 5,
+
+reduction_method = 'tSNE', verbose = TRUE, check_duplicates = FALSE)
+
+my_cds
+
+my_cds <- clusterCells(my_cds, num_clusters = 15)
+
+# cluster information is in the Cluster column
+
+head(pData(my_cds))
+
+# store cluster info for comparing later
+
+my_cluster_dim_5 <- pData(my_cds)$Cluster
+
+plot_cell_clusters(my_cds)
+
+my_cds <- reduceDimension(my_cds, max_components = 2, num_dim = 10,
+
+reduction_method = 'tSNE', verbose = TRUE, check_duplicates = FALSE))
+
+my_cds <- reduceDimension(my_cds, max_components = 2, num_dim = 10,
+
+reduction_method = 'tSNE', verbose = TRUE, check_duplicates = FALSE)
+
+my_cds <- clusterCells(my_cds, num_clusters = 15)
+
+my_cluster_dim_10 <- pData(my_cds)$Cluster
+
+plot_cell_clusters(my_cds)
+
+dev.off()
+
+library(clues)
+
+adjustedRand(as.numeric(my_cluster_dim_5), as.numeric(my_cluster_dim_10))
+
+# create vector of no's
+
+my_vector <- rep('no', nrow(pData(my_cds)))
+
+# change status to yes if the cell was in cluster 1
+
+my_vector[pData(my_cds)$Cluster == 1] <- rep('yes', sum(pData(my_cds)$Cluster == 1))
+
+# add vector to phenoData
+
+pData(my_cds)$test <- my_vector
+
+head(pData(my_cds))
+
+length(unsup_clustering_genes$gene_id)
+
+de_cluster_one <- differentialGeneTest(my_cds[unsup_clustering_genes$gene_id,],
+
+fullModelFormulaStr = '~test',
+
+cores = 8)
+
+de_cluster_one
+
+dim(de_cluster_one)
+
+library(dplyr)
+
+de_cluster_one %>% arrange(qval) %>% head()
+
+plot_genes_jitter(my_cds['HEPACAM2',], grouping = "Cluster")
+
+plot_genes_jitter(my_cds['OLFM4',], grouping = "Cluster")
+
+plot_genes_jitter(my_cds['lyz',], grouping = "Cluster")
+
+plot_genes_jitter(my_cds['LYZ',], grouping = "Cluster")
+
+plot_genes_jitter(my_cds['INSM1',], grouping = "Cluster")
+
+plot_genes_jitter(my_cds['DEFA6',], grouping = "Cluster")
+
+plot_genes_jitter(my_cds['SPINK4',], grouping = "Cluster")
+
+dev.off()
+
+# add another column to the phenotypic data
+
+# where TRUE means cluster membership in clusters 1, 4, or 6
+
+pData(my_cds)$my_colour <- pData(my_cds)$Cluster == 1 | pData(my_cds)$Cluster == 4 | pData(my_cds)$Cluster == 6
+
+plot_cell_clusters(my_cds, color_by = 'my_colour')
+
+pData(my_cds)$my_colour <- pData(my_cds)$Cluster == 1
+
+# add another column to the phenotypic data
+
+# where TRUE means cluster membership in clusters 1, 4, or 6
+
+pData(my_cds)$my_colour <- pData(my_cds)$Cluster == 1 | pData(my_cds)$Cluster == 4 | pData(my_cds)$Cluster == 6
+
+plot_cell_clusters(my_cds, color_by = 'my_colour')
+
+pData(my_cds)$my_colour <- pData(my_cds)$Cluster == 1
+
+pData(my_cds)$timepoint <- pData(my_cds)$Cluster == 1 | pData(my_cds)$Cluster == 4 | pData(my_cds)$Cluster == 6
+
+plot_cell_clusters(my_cds, color_by = 'timepoint')
+
+dev.off()
+
+expressed_genes <- row.names(subset(fData(my_cds), num_cells_expressed >= 1))
+
+expressed_genes
+
+expressed_genes <- row.names(subset(fData(my_cds), num_cells_expressed >= 10))
+
+expressed_genes
+
+expressed_genes <- row.names(subset(fData(my_cds), num_cells_expressed >= 1))
+
+# my_colour is TRUE if a cell belongs to either cluster 1, 4, or 6
+
+my_cds_subset <- my_cds[expressed_genes, pData(my_cds)$my_colour]
+
+my_cds_subset
+
+my_cds_subset <- detectGenes(my_cds_subset, min_expr = 0.1)
+
+fData(my_cds_subset)$use_for_ordering <- fData(my_cds_subset)$num_cells_expressed > 0.05 * ncol(my_cds_subset)
+
+# how many genes are used?
+
+table(fData(my_cds_subset)$use_for_ordering)
+
+my_cds_subset <- reduceDimension(my_cds_subset,
+
+max_components = 2,
+
+norm_method = 'log',
+
+num_dim = 10,
+
+reduction_method = 'tSNE',
+
+verbose = TRUE)
+
+my_cds_subset <- reduceDimension(my_cds_subset,
+
+max_components = 2,
+
+norm_method = 'log',
+
+num_dim = 1:10,
+
+reduction_method = 'tSNE',
+
+verbose = TRUE)
+
+my_cds_subset <- reduceDimension(my_cds_subset,
+
+max_components = 2,
+
+norm_method = 'log',
+
+num_dim = 1:5,
+
+reduction_method = 'tSNE',
+
+verbose = TRUE)
+
+my_cds_subset
+
+my_cds_subset <- reduceDimension(my_cds_subset,
+
+max_components = 2,
+
+norm_method = 'log',
+
+num_dim = 1:5,
+
+reduction_method = 'tSNE',
+
+verbose = TRUE, check_duplicates = FALSE)
+
+my_cds_subset <- reduceDimension(my_cds_subset,
+
+max_components = 5,
+
+norm_method = 'log',
+
+num_dim = 1:5,
+
+reduction_method = 'tSNE',
+
+verbose = TRUE, check_duplicates = FALSE)
+
+my_cds_subset <- reduceDimension(my_cds_subset,
+
+max_components = 5,
+
+norm_method = 'log',
+
+num_dim = 3,
+
+reduction_method = 'tSNE',
+
+verbose = TRUE, check_duplicates = FALSE)
+
+my_cds_subset <- reduceDimension(my_cds_subset,
+
+max_components = 5,
+
+norm_method = 'log',
+
+dims = 3,
+
+reduction_method = 'tSNE',
+
+verbose = TRUE, check_duplicates = FALSE)
+
+my_cds_subset <- reduceDimension(my_cds_subset,
+
+max_components = 3,
+
+norm_method = 'log',
+
+num_dim = 10,
+
+reduction_method = 'tSNE',
+
+verbose = TRUE, check_duplicates = FALSE)
+
+my_cds_subset <- reduceDimension(my_cds_subset,
+
+max_components = 3,
+
+norm_method = 'log',
+
+num_dim = 5,
+
+reduction_method = 'tSNE',
+
+verbose = TRUE, check_duplicates = FALSE)
+
+my_cds_subset <- reduceDimension(my_cds_subset,
+
+max_components = 2, num_dim = 3,
+
+norm_method = 'log',
+
+reduction_method = 'tSNE',
+
+verbose = T, perplexity = 21)
+
+my_cds_subset <- reduceDimension(my_cds_subset,
+
+max_components = 2, num_dim = 3,
+
+norm_method = 'log',
+
+reduction_method = 'tSNE',
+
+verbose = T, perplexity = 40)
+
+my_cds_subset <- reduceDimension(my_cds_subset,
+
+max_components = 2, num_dim = 3,
+
+norm_method = 'log',
+
+reduction_method = 'tSNE',
+
+verbose = T, perplexity = 10)
+
+my_cds_subset
+
+my_cds_subset <- clusterCells(my_cds_subset, verbose = FALSE)
+
+plot_rho_delta(my_cds_subset, rho_threshold = 2, delta_threshold = 10)
+
+dev.off()
+
+#We’ll use rho = 2 and delta = 10 to cluster the cells again.
+
+my_cds_subset <- clusterCells(my_cds_subset,
+
+rho_threshold = 2,
+
+delta_threshold = 10,
+
+skip_rho_sigma = T,
+
+verbose = FALSE)
+
+my_cluster_dim_10
+
+my_cds
+
+HSMM_myo <- clusterCells(my_cds,
+
+rho_threshold = 2,
+
+delta_threshold = 4,
+
+skip_rho_sigma = T,
+
+verbose = F)
+
+HSMM_myo
+
+my_cds_subset
+
+plot_cell_clusters(HSMM_myo, color_by = 'as.factor(Cluster)')
+
+plot_cell_clusters(my_cds, color_by = 'as.factor(Cluster)')
+
+plot_cell_clusters(my_cds, color_by = 'as.factor(Hours)')
+
+plot_cell_clusters(my_cds, color_by = 'as.factor(timepoint)')
+
+(timepoint <- factor(c(rep("day0", 96), rep("day3", 96), rep("day6", 96), rep("day9", 96))))
+
+plot_cell_clusters(my_cds, color_by = 'as.factor(timepoint)')
+
+(coldata <- data.frame(row.names=colnames(pbmc), timepoint))
+
+sample_sheet <- data.frame(groups = timepoint, row.names = colnames(pbmc))
+
+sample_sheet
+
+sample_sheet <- data.frame(groups = timepoint, row.names = colnames(pbmc), timepoint)
+
+sample_sheet
+
+pd <- new("AnnotatedDataFrame",data=sample_sheet)
+
+fd <- new("AnnotatedDataFrame",data=gene_ann)
+
+gene_ann <- data.frame(gene_short_name = row.names(pbmc), row.names = row.names(pbmc))
+
+gene_ann
+
+pd <- new("AnnotatedDataFrame",data=sample_sheet)
+
+fd <- new("AnnotatedDataFrame",data=gene_ann)
+
+fd
+
+cds <- newCellDataSet(pbmc,
+
+phenoData = pd,
+
+featureData = fd,
+
+lowerDetectionLimit = 0.5,
+
+expressionFamily = negbinomial.size())
+
+data <- as(as.matrix(pbmc@assays$RNA@data), 'sparseMatrix')
+
+data
+
+cds <- newCellDataSet(data,
+
+phenoData = pd,
+
+featureData = fd,
+
+lowerDetectionLimit = 0.5,
+
+expressionFamily = negbinomial.size())
+
+cds
+
+dev.off()
+
+savehistory('monocle_18aug_runningcode.txt')
+
+cds <- estimateSizeFactors(cds)
+
+cds <- estimateDispersions(cds)
+
+cds$timepoint
+
+my_cds <- detectGenes(my_cds)
+
+head(fData(my_cds))
+
+cds <- detectGenes(cds)
+
+head(fData(cds))
+
+summary(fData(cds)$num_cells_expressed)
+
+head(pData(my_cds))
+
+sum((exprs(my_cds)[,"day0_00001_N701.N502_TAAGGCGA.CTCTCTAT.day0"])>0)
+
+x <- pData(cds)$num_genes_expressed
+
+x_1 <- (x - mean(x)) / sd(x)
+
+summary(x_1)
+
+disp_table <- dispersionTable(cds)
+
+head(disp_table)
+
+disp_table
+
+table(disp_table$mean_expression>=0.1)
+
+unsup_clustering_genes <- subset(disp_table, mean_expression >= 0.1)
+
+my_cds <- setOrderingFilter(my_cds, unsup_clustering_genes$gene_id)
+
+plot_ordering_genes(my_cds)
+
+my_cds <- reduceDimension(my_cds, max_components = 2, num_dim = 5,
+
+reduction_method = 'tSNE', verbose = TRUE)
+
+my_cds <- reduceDimension(my_cds, max_components = 2, num_dim = 5,
+
+reduction_method = 'tSNE', verbose = TRUE, check_duplicates = FALSE)
+
+cds <- setOrderingFilter(my_cds, unsup_clustering_genes$gene_id)
+
+cds
+
+cds <- reduceDimension(cds, max_components = 2, num_dim = 5,
+
+reduction_method = 'tSNE', verbose = TRUE, check_duplicates = FALSE)
+
+cds
+
+cds$my_colour
+
+cds$timepoint
+
+cds <- reduceDimension(cds, max_components = 2, num_dim = 10,
+
+reduction_method = 'tSNE', verbose = TRUE, check_duplicates = FALSE)
+
+cds <- clusterCells(cds, num_clusters = 15)
+
+cluster_dim_10 <- pData(cds)$Cluster
+
+plot_cell_clusters(cds)
+
+# create vector of no's
+
+my_vector <- rep('timepoint', nrow(pData(cds)))
+
+# change status to yes if the cell was in cluster 1
+
+my_vector[pData(my_cds)$Cluster == 1] <- rep('yes', sum(pData(my_cds)$Cluster == 1))
+
+# add vector to phenoData
+
+pData(my_cds)$test <- my_vector
+
+head(pData(my_cds))
+
+# create vector of no's
+
+my_vector <- rep('timepoint', nrow(pData(cds)))
+
+my_vector
+
+# change status to yes if the cell was in cluster 1
+
+my_vector[pData(cds)$Cluster == 1] <- rep('yes', sum(pData(cds)$Cluster == 1))
+
+# add vector to phenoData
+
+pData(cds)$test <- my_vector
+
+head(pData(cds))
+
+unsup_clustering_genes <- subset(disp_table, mean_expression >= 0.1) + cds <- setOrderingFilter(cds, unsup_clustering_genes$gene_id)
+
+plot_ordering_genes(cds)
+
+unsup_clustering_genes <- subset(disp_table, mean_expression >= 0.1)
+
+cds <- setOrderingFilter(cds, unsup_clustering_genes$gene_id)
+
+plot_ordering_genes(cds)
+
+de_cluster_one <- differentialGeneTest(cds[unsup_clustering_genes$gene_id,],
+
+fullModelFormulaStr = '~test',
+
+cores = 8)
+
+de_cluster_one
+
+dim(de_cluster_one)
+
+library(dplyr)
+
+de_cluster_one %>% arrange(qval) %>% head()
+
+dev.off()
+
+pData(cds)$my_colour <- pData(cds)$Cluster == 1 | pData(cds)$Cluster == 4 | pData(cds)$Cluster == 6
+
+plot_cell_clusters(cds, color_by = 'timepoint')
+
+expressed_genes <- row.names(subset(fData(cds), num_cells_expressed >= 10))
+
+# my_colour is TRUE if a cell belongs to either cluster 1, 4, or 6
+
+cds_subset <- cds[expressed_genes, pData(cds)$timepoint]
+
+cds_subset
+
+cds_subset <- detectGenes(cds_subset, min_expr = 0.05)
+
+fData(cds_subset)$use_for_ordering <- fData(cds_subset)$num_cells_expressed > 0.05 * ncol(cds_subset)
+
+# how many genes are used?
+
+table(fData(cds_subset)$use_for_ordering)
+
+cds_subset <- detectGenes(cds_subset, min_expr = 0.1)
+
+fData(cds_subset)$use_for_ordering <- fData(cds_subset)$num_cells_expressed > 0.05 * ncol(cds_subset)
+
+# how many genes are used?
+
+table(fData(cds_subset)$use_for_ordering)
+
+cds_subset <- detectGenes(cds_subset)
+
+fData(cds_subset)$use_for_ordering <- fData(cds_subset)$num_cells_expressed > 0.05 * ncol(cds_subset)
+
+# how many genes are used?
+
+table(fData(cds_subset)$use_for_ordering)
+
+cds_subset <- reduceDimension(cds_subset,
+
+max_components = 2, num_dim = 3,
+
+norm_method = 'log',
+
+reduction_method = 'tSNE',
+
+verbose = T, perplexity = 21)
+
+cds_subset
+
+cds_subset <- detectGenes(cds_subset, min_expr = 0.1)
+
+fData(cds_subset)$use_for_ordering <- fData(cds_subset)$num_cells_expressed > 0.05 * ncol(cds_subset)
+
+# how many genes are used?
+
+table(fData(cds_subset)$use_for_ordering)
+
+cds_subset
+
+cds_subset <- reduceDimension(cds_subset,
+
+max_components = 2, num_dim = 3,
+
+norm_method = 'log',
+
+reduction_method = 'tSNE',
+
+verbose = T, perplexity = 30)
+
+cds_subset
+
+cds_subset <- reduceDimension(cds_subset,
+
+max_components = 2, num_dim = 3,
+
+norm_method = 'log',
+
+reduction_method = 'tSNE',
+
+verbose = T, perplexity = 41)
+
+cds_subset <- reduceDimension(cds_subset,
+
+max_components = 2, num_dim = 3,
+
+norm_method = 'log',
+
+reduction_method = 'tSNE',
+
+verbose = T, perplexity = 31)
+
+cds_subset <- reduceDimension(cds_subset,
+
+max_components = 2, num_dim = 3,
+
+norm_method = 'log',
+
+reduction_method = 'tSNE',
+
+verbose = T, perplexity = 21)
+
+cds_subset <- clusterCells(cds_subset, verbose = FALSE)
+
+my_cds_subset <- clusterCells(cds_subset,
+
+rho_threshold = 2,
+
+delta_threshold = 10,
+
+skip_rho_sigma = T,
+
+verbose = FALSE)
+
+my_cds_subset
+
+table(pData(my_cds_subset)$Cluster)
+
+plot_cell_clusters(my_cds_subset)
+
+plot_cell_clusters(cds_subset)
+
+plot_cell_clusters(cds)
+
+plot_cell_clusters(my_cds_subset)
+
+clustering_DEG_genes <- differentialGeneTest(my_cds_subset,
+
+fullModelFormulaStr = '~Cluster',
+
+cores = 8)
+
+dev.off()
+
+clustering_DEG_genes %>% arrange(qval) %>% head()
+
+my_ordering_genes <- row.names(clustering_DEG_genes)[order(clustering_DEG_genes$qval)][1:1000]
+
+my_cds_subset <- setOrderingFilter(my_cds_subset, ordering_genes = my_ordering_genes)
+
+my_cds_subset <- reduceDimension(my_cds_subset, method = 'DDRTree')
+
+my_ordering_genes
+
+my_cds_subset
+
+# the warnings were for use of deprecated code
+
+my_cds_subset <- orderCells(my_cds_subset)
+
+plot_cell_trajectory(my_cds_subset, color_by = "Cluster")
+
+# pseudotime is now a column in the phenotypic data as well as the cell state
+
+head(pData(my_cds_subset))
+
+my_pseudotime_de <- differentialGeneTest(my_cds_subset,
+
+fullModelFormulaStr = "~sm.ns(Pseudotime)",
+
+cores = 8)
+
+my_pseudotime_de %>% arrange(qval) %>% head()
+
+# save the top 6 genes
+
+my_pseudotime_de %>% arrange(qval) %>% head() %>% select(id) -> my_pseudotime_gene
+
+my_pseudotime_gene <- my_pseudotime_gene$id
+
+my_pseudotime_de %>% arrange(qval) %>% head() %>% select(gene_short_name) -> my_pseudotime_gene
+
+my_pseudotime_gene
+
+my_pseudotime_gene <- my_pseudotime_gene$id
+
+my_pseudotime_gene
+
+my_pseudotime_gene$id
+
+my_pseudotime_gene <- my_pseudotime_gene$gene_short_name
+
+my_pseudotime_gene
+
+plot_genes_in_pseudotime(my_cds_subset[my_pseudotime_gene,])
+
+my_pseudotime_de %>% arrange(qval) %>% head() %>% select(gene_short_name) -> my_pseudotime_gene
+
+plot_genes_in_pseudotime(my_cds_subset[my_pseudotime_gene,])
+
+my_pseudotime_de %>% arrange(qval) %>% head()
+
+# save the top 6 genes
+
+my_pseudotime_de %>% arrange(qval) %>% head() %>% select(gene_short_name) -> my_pseudotime_gene
+
+my_pseudotime_gene <- my_pseudotime_gene$id
+
+plot_genes_in_pseudotime(my_cds_subset[my_pseudotime_gene,])
+
+my_pseudotime_gene
+
+# save the top 6 genes
+
+my_pseudotime_de %>% arrange(qval) %>% head()  -> my_pseudotime_gene
+
+my_pseudotime_gene <- my_pseudotime_gene$id
+
+plot_genes_in_pseudotime(my_cds_subset[my_pseudotime_gene,])
+
+# save the top 6 genes
+
+my_pseudotime_de %>% arrange(qval) %>% head()  -> my_pseudotime_gene
+
+my_pseudotime_gene <- my_pseudotime_gene$id
+
+plot_genes_in_pseudotime(my_cds_subset[my_pseudotime_gene,])
+
+my_pseudotime_de %>% arrange(qval) %>% head()  -> my_pseudotime_gene
+
+my_pseudotime_gene
+
+my_pseudotime_gene
+
+# save the top 6 genes
+
+my_pseudotime_de %>% arrange(qval) %>% head()  -> my_pseudotime_gene
+
+my_pseudotime_gene <- my_pseudotime_gene$gene_short_name
+
+my_pseudotime_gene
+
+# save the top 6 genes
+
+my_pseudotime_de %>% arrange(qval) %>% head()  -> my_pseudotime_gene
+
+my_pseudotime_gene <- my_pseudotime_gene$qval
+
+my_pseudotime_gene
+
+# save the top 6 genes
+
+my_pseudotime_de %>% arrange(qval) %>% head()  -> my_pseudotime_gene
+
+my_pseudotime_gene <- my_pseudotime_gene$gene_short_name
+
+my_pseudotime_gene
+
+plot_genes_in_pseudotime(my_cds_subset[my_pseudotime_gene,])
+
+plot_genes_in_pseudotime(cds_subset[my_pseudotime_gene,])
+
+plot_genes_in_pseudotime(cds[my_pseudotime_gene,])
+
+plot_genes_in_pseudotime(my_cds_subset[my_pseudotime_gene,])
+
+plot_genes_in_pseudotime(my_pseudotime_gene)
+
+my_genes <- row.names(subset(fData(my_cds_subset), gene_short_name %in% c("OLFM4", "CHGA", "OR51E1")))
+
+cds_subset_x <- my_cds_subset[my_genes,]
+
+plot_genes_in_pseudotime(cds_subset_x, color_by="Timepoint")
+
+my_genes <- row.names(subset(fData(my_cds_subset), gene_short_name %in% c("OLFM4", "CHGA", "OR51E1")))
+
+cds_subset_x <- my_cds_subset[my_genes,]
+
+plot_genes_in_pseudotime(cds_subset_x, color_by="Time")
+
+my_genes <- row.names(subset(fData(my_cds_subset), gene_short_name %in% c("OLFM4", "CHGA", "OR51E1")))
+
+cds_subset_x <- my_cds_subset[my_genes,]
+
+plot_genes_in_pseudotime(cds_subset_x, color_by="mycolor")
+
+my_genes <- row.names(subset(fData(my_cds_subset), gene_short_name %in% c("OLFM4", "CHGA", "OR51E1")))
+
+cds_subset_x <- my_cds_subset[my_genes,]
+
+plot_genes_in_pseudotime(cds_subset_x)
+
+dev.off()
+
+my_pseudotime_de %>% arrange(qval) %>% head(50) %>% select(id) -> gene_to_cluster
+
+my_pseudotime_de %>% arrange(qval) %>% head(50) %>% select(gene_short_name) -> gene_to_cluster
+
+gene_to_cluster
+
+gene_to_cluster <- gene_to_cluster$gene_short_name
+
+gene_to_cluster
+
+my_pseudotime_cluster <- plot_pseudotime_heatmap(my_cds_subset[gene_to_cluster,],
+
+num_clusters = 3,
+
+cores = 8,
+
+show_rownames = TRUE,
+
+return_heatmap = TRUE)
+
+dev.off()
+
+newdata <- data.frame(Pseudotime = seq(min(pData(my_cds_subset)$Pseudotime),
+
+max(pData(my_cds_subset)$Pseudotime), length.out = 100))
+
+newdata
+
+my_cluster <- cutree(my_pseudotime_cluster$tree_row, 3)
+
+my_cluster
+
+# genes in cluster 1
+
+my_pseudotime_de[names(my_cluster[my_cluster == 1]),"gene_short_name"]
+
+# genes in cluster 2
+
+my_pseudotime_de[names(my_cluster[my_cluster == 2]),"gene_short_name"]
+
+# genes in cluster 2
+
+my_pseudotime_de[names(my_cluster[my_cluster == 3]),"gene_short_name"]
+
+plot_cell_trajectory(my_cds_subset, color_by = "Cluster")
+
+plot_cell_trajectory(my_cds_subset, color_by = "timepoint")
+
+savehistory('18AUG_HISTORY2.txt')
+
+
+
+
+
+
+
+###########################################################
+
+2 sep ATAC 
+
+> pbmc.markers <- FindAllMarkers(object = seurat, only.pos = TRUE, min.pct = 0.25,thresh.use = 0.25)
+
+Calculating cluster 0
+
+  |++++++++++++++++++++++++++++++++++++++++++++++++++| 100% elapsed = 00s
+
+Calculating cluster 1
+
+  |++++++++++++++++++++++++++++++++++++++++++++++++++| 100% elapsed = 00s
+
+Calculating cluster 2
+
+  |++++++++++++++++++++++++++++++++++++++++++++++++++| 100% elapsed = 01s
+
+> pbmc.markers %>% group_by(cluster) %>% top_n(5, avg_logFC)
+
+# A tibble: 11 x 7
+
+# Groups:   cluster [3]
+
+           p_val avg_logFC pct.1 pct.2 p_val_adj cluster gene                    
+
+           <dbl>     <dbl> <dbl> <dbl>     <dbl> <fct>   <chr>                   
+
+ 1 0.000000188       0.445 0.522 0.066   0.113   0       chr6-108557637-108560444
+
+ 2 0.00000622        0.388 0.328 0.016   1       0       chr15-44830672-44831523 
+
+ 3 0.00000728        0.390 0.403 0.049   1       0       chr16-67404212-67405343 
+
+ 4 0.0000256         0.370 0.299 0.016   1       0       chr10-97498135-97499173 
+
+ 5 0.0000264         0.394 0.299 0.016   1       0       chr5-67003890-67004804  
+
+ 6 0.00000000408     0.290 0.917 0.912   0.00245 1       chr3-93470279-93470873  
+
+ 7 0.000000258       0.578 0.385 0.026   0.155   2       chr11-42972519-42973105 
+
+ 8 0.000000676       0.653 0.462 0.052   0.406   2       chr6-138188039-138189110
+
+ 9 0.0000172         0.594 0.538 0.104   1       2       chr18-49655844-49656619 
+
+10 0.000152          0.565 0.538 0.148   1       2       chr11-76234618-76236352 
+
+11 0.000218          0.566 0.615 0.235   1       2       chr19-49641504-49642574 
